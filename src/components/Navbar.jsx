@@ -44,6 +44,7 @@ export default function Navbar() {
             <>
               <Link to="/dashboard" className={`navbar__link ${location.pathname === '/dashboard' ? 'active' : ''}`}>Dashboard</Link>
               <Link to="/marketplace" className={`navbar__link ${location.pathname === '/marketplace' ? 'active' : ''}`}>Market</Link>
+              <Link to="/my-orders" className={`navbar__link ${location.pathname === '/my-orders' ? 'active' : ''}`}>My Orders</Link>
               <Link to="/scheme-finder" className={`navbar__link ${location.pathname === '/scheme-finder' ? 'active' : ''}`}>Schemes</Link>
               <Link to="/market-price" className={`navbar__link ${location.pathname === '/market-price' ? 'active' : ''}`}>Mandi Prices</Link>
             </>
@@ -85,6 +86,7 @@ export default function Navbar() {
           <>
             <Link to="/dashboard" className="navbar__mobile-link">📊 Dashboard</Link>
             <Link to="/marketplace" className="navbar__mobile-link">🛒 Marketplace</Link>
+            <Link to="/my-orders" className="navbar__mobile-link">📦 My Orders</Link>
             <Link to="/scheme-finder" className="navbar__mobile-link">📋 Schemes</Link>
             <Link to="/market-price" className="navbar__mobile-link">📈 Mandi Prices</Link>
             <button className="navbar__mobile-logout" onClick={handleLogout}>🚪 Logout</button>

@@ -10,6 +10,10 @@ import LoginPage    from './pages/Login/LoginPage';
 import Dashboard    from './pages/Dashboard/Dashboard';
 import SchemeFinder from './pages/Dashboard/SchemeFinder';
 import MandiPrices  from './components/MandiPrices';
+import Marketplace  from './pages/Marketplace/Marketplace';
+import AddProduct   from './pages/Marketplace/AddProduct';
+import Checkout     from './pages/Marketplace/Checkout';
+import MyOrders     from './pages/Marketplace/MyOrders';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }) {
@@ -49,7 +53,12 @@ function AppRoutes() {
       } />
 
       {/* Placeholder protected routes for future features */}
-      <Route path="/marketplace"   element={<ProtectedRoute><Layout><ComingSoon title="Marketplace" icon="🛒" /></Layout></ProtectedRoute>} />
+      {/* Marketplace */}
+      <Route path="/marketplace"          element={<ProtectedRoute><Layout><Marketplace /></Layout></ProtectedRoute>} />
+      <Route path="/marketplace/add"      element={<ProtectedRoute><Layout><AddProduct /></Layout></ProtectedRoute>} />
+      <Route path="/marketplace/checkout/:id" element={<ProtectedRoute><Layout><Checkout /></Layout></ProtectedRoute>} />
+      <Route path="/my-orders"            element={<ProtectedRoute><Layout><MyOrders /></Layout></ProtectedRoute>} />
+
       <Route path="/logistics"     element={<ProtectedRoute><Layout><ComingSoon title="Smart Logistics" icon="🗺️" /></Layout></ProtectedRoute>} />
       <Route path="/scheme-finder" element={<ProtectedRoute><Layout><SchemeFinder /></Layout></ProtectedRoute>} />
       <Route path="/ai-simplify"   element={<ProtectedRoute><Layout><ComingSoon title="AI Simplify" icon="🤖" /></Layout></ProtectedRoute>} />
