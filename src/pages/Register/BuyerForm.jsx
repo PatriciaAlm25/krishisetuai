@@ -50,6 +50,8 @@ export default function BuyerForm() {
     if (step === 1) {
       if (!form.fullName.trim()) { setError('Please enter your full name'); return; }
       if (!form.mobile || form.mobile.length !== 10) { setError('Please enter a valid 10-digit mobile number'); return; }
+      if (!form.email.trim()) { setError('Please enter your email address'); return; }
+      if (!form.email.includes('@')) { setError('Please enter a valid email address'); return; }
     }
     if (step === 2) {
       if (!form.buyerType) { setError('Please select your buyer type'); return; }
@@ -66,7 +68,7 @@ export default function BuyerForm() {
     e.preventDefault();
     setError('');
 
-    const loginEmail = form.email.trim() || `${form.mobile}@krishisetu.in`;
+    const loginEmail = form.email.trim();
     if (form.password.length < 6) { setError('Password must be at least 6 characters'); return; }
     if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return; }
 
@@ -137,10 +139,10 @@ export default function BuyerForm() {
           </div>
 
           <div className="reg-field">
-            <label className="reg-label">Email Address (optional)</label>
+            <label className="reg-label">Email Address *</label>
             <input className="reg-input" type="email" placeholder="business@example.com"
               value={form.email} onChange={e => update('email', e.target.value)} />
-            <span className="reg-hint">Used for login. If blank, mobile is used.</span>
+            <span className="reg-hint">Used for your account login and notifications.</span>
           </div>
         </div>
       )}
