@@ -1,122 +1,108 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-function App() {
-  const [count, setCount] = useState(0)
+import Navbar       from './components/Navbar';
+import Footer       from './components/Footer';
+import LandingPage  from './pages/LandingPage/LandingPage';
+import RegisterPage from './pages/Register/RegisterPage';
+import LoginPage    from './pages/Login/LoginPage';
+import Dashboard    from './pages/Dashboard/Dashboard';
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+// Protected Route wrapper
+function ProtectedRoute({ children }) {
+  const { currentUser } = useAuth();
+  return currentUser ? children : <Navigate to="/login" replace />;
 }
 
-export default App
+// Layout with Navbar + Footer
+function Layout({ children }) {
+  return (
+    <>
+      <Navbar />
+      <main>{children}</main>
+      <Footer />
+    </>
+  );
+}
+
+// Layout without footer (for auth pages)
+function AuthLayout({ children }) {
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public */}
+      <Route path="/" element={<Layout><LandingPage /></Layout>} />
+      <Route path="/register" element={<AuthLayout><RegisterPage /></AuthLayout>} />
+      <Route path="/login"    element={<AuthLayout><LoginPage /></AuthLayout>} />
+
+      {/* Protected */}
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <Layout><Dashboard /></Layout>
+        </ProtectedRoute>
+      } />
+
+      {/* Placeholder protected routes for future features */}
+      <Route path="/marketplace"   element={<ProtectedRoute><Layout><ComingSoon title="Marketplace" icon="🛒" /></Layout></ProtectedRoute>} />
+      <Route path="/logistics"     element={<ProtectedRoute><Layout><ComingSoon title="Smart Logistics" icon="🗺️" /></Layout></ProtectedRoute>} />
+      <Route path="/scheme-finder" element={<ProtectedRoute><Layout><ComingSoon title="Scheme Finder" icon="📋" /></Layout></ProtectedRoute>} />
+      <Route path="/ai-simplify"   element={<ProtectedRoute><Layout><ComingSoon title="AI Simplify" icon="🤖" /></Layout></ProtectedRoute>} />
+      <Route path="/action-guide"  element={<ProtectedRoute><Layout><ComingSoon title="Action Guide" icon="📌" /></Layout></ProtectedRoute>} />
+      <Route path="/voice-assist"  element={<ProtectedRoute><Layout><ComingSoon title="Voice Assistant" icon="🎙️" /></Layout></ProtectedRoute>} />
+      <Route path="/alerts"        element={<ProtectedRoute><Layout><ComingSoon title="Smart Alerts" icon="🔔" /></Layout></ProtectedRoute>} />
+      <Route path="/market-price"  element={<ProtectedRoute><Layout><ComingSoon title="Market Prices" icon="📈" /></Layout></ProtectedRoute>} />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+// Coming soon page for features not yet built
+function ComingSoon({ title, icon }) {
+  return (
+    <div style={{
+      minHeight: '80vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '20px',
+      padding: '120px 20px 60px',
+      textAlign: 'center',
+    }}>
+      <div style={{ fontSize: '4rem' }}>{icon}</div>
+      <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, color: 'var(--dark)' }}>
+        {title}
+      </h2>
+      <p style={{ color: 'var(--text-muted)', maxWidth: '400px', lineHeight: 1.7 }}>
+        This feature is coming soon! We're working hard to bring you the best experience.
+      </p>
+      <div style={{
+        background: 'linear-gradient(135deg, var(--green-50), var(--blue-50))',
+        border: '1px solid rgba(51,201,139,0.2)',
+        borderRadius: '12px',
+        padding: '16px 24px',
+        fontSize: '0.9rem',
+        color: 'var(--green-800)',
+        fontWeight: 600,
+      }}>
+        🚧 Under Development — Check Back Soon!
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
