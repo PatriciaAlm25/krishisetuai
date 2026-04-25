@@ -13,14 +13,6 @@ export default function SchemeFinder() {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (userProfile && userProfile.role === 'farmer') {
-      getAIRecommendations();
-    } else {
-      setLoading(false);
-    }
-  }, [userProfile]);
-
   const getAIRecommendations = async () => {
     try {
       if (!OPENROUTER_API_KEY) {
@@ -87,6 +79,14 @@ export default function SchemeFinder() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (userProfile && userProfile.role === 'farmer') {
+      getAIRecommendations();
+    } else {
+      setLoading(false);
+    }
+  }, [userProfile]);
 
   const filteredSchemes = SCHEMES.filter(s => 
     s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
