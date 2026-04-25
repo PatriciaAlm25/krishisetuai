@@ -11,6 +11,7 @@ import Dashboard    from './pages/Dashboard/Dashboard';
 import SchemeFinder from './pages/Dashboard/SchemeFinder';
 import AISimplify  from './pages/Dashboard/AISimplify';
 import ActionGuide from './pages/Dashboard/ActionGuide';
+import VoiceAssistant from './pages/Dashboard/VoiceAssistant';
 import MandiPrices  from './components/MandiPrices';
 import Marketplace  from './pages/Marketplace/Marketplace';
 import AddProduct   from './pages/Marketplace/AddProduct';
@@ -65,7 +66,7 @@ function AppRoutes() {
       <Route path="/scheme-finder" element={<ProtectedRoute><Layout><SchemeFinder /></Layout></ProtectedRoute>} />
       <Route path="/ai-simplify"   element={<ProtectedRoute><Layout><AISimplify /></Layout></ProtectedRoute>} />
       <Route path="/action-guide"  element={<ProtectedRoute><Layout><ActionGuide /></Layout></ProtectedRoute>} />
-      <Route path="/voice-assist"  element={<ProtectedRoute><Layout><ComingSoon title="Voice Assistant" icon="🎙️" /></Layout></ProtectedRoute>} />
+      <Route path="/voice-assist"  element={<ProtectedRoute><Layout><VoiceAssistant /></Layout></ProtectedRoute>} />
       <Route path="/alerts"        element={<ProtectedRoute><Layout><ComingSoon title="Smart Alerts" icon="🔔" /></Layout></ProtectedRoute>} />
       <Route path="/market-price"  element={<ProtectedRoute><Layout><MandiPrices /></Layout></ProtectedRoute>} />
 
