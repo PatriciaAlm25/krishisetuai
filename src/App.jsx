@@ -8,6 +8,7 @@ import LandingPage  from './pages/LandingPage/LandingPage';
 import RegisterPage from './pages/Register/RegisterPage';
 import LoginPage    from './pages/Login/LoginPage';
 import Dashboard    from './pages/Dashboard/Dashboard';
+import MandiPrices  from './components/MandiPrices';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }) {
@@ -54,7 +55,7 @@ function AppRoutes() {
       <Route path="/action-guide"  element={<ProtectedRoute><Layout><ComingSoon title="Action Guide" icon="📌" /></Layout></ProtectedRoute>} />
       <Route path="/voice-assist"  element={<ProtectedRoute><Layout><ComingSoon title="Voice Assistant" icon="🎙️" /></Layout></ProtectedRoute>} />
       <Route path="/alerts"        element={<ProtectedRoute><Layout><ComingSoon title="Smart Alerts" icon="🔔" /></Layout></ProtectedRoute>} />
-      <Route path="/market-price"  element={<ProtectedRoute><Layout><ComingSoon title="Market Prices" icon="📈" /></Layout></ProtectedRoute>} />
+      <Route path="/market-price"  element={<ProtectedRoute><Layout><MandiPrices /></Layout></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
