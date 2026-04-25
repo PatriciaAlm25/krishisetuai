@@ -8,6 +8,7 @@ import LandingPage  from './pages/LandingPage/LandingPage';
 import RegisterPage from './pages/Register/RegisterPage';
 import LoginPage    from './pages/Login/LoginPage';
 import Dashboard    from './pages/Dashboard/Dashboard';
+import SchemeFinder from './pages/Dashboard/SchemeFinder';
 import MandiPrices  from './components/MandiPrices';
 
 // Protected Route wrapper
@@ -50,7 +51,7 @@ function AppRoutes() {
       {/* Placeholder protected routes for future features */}
       <Route path="/marketplace"   element={<ProtectedRoute><Layout><ComingSoon title="Marketplace" icon="🛒" /></Layout></ProtectedRoute>} />
       <Route path="/logistics"     element={<ProtectedRoute><Layout><ComingSoon title="Smart Logistics" icon="🗺️" /></Layout></ProtectedRoute>} />
-      <Route path="/scheme-finder" element={<ProtectedRoute><Layout><ComingSoon title="Scheme Finder" icon="📋" /></Layout></ProtectedRoute>} />
+      <Route path="/scheme-finder" element={<ProtectedRoute><Layout><SchemeFinder /></Layout></ProtectedRoute>} />
       <Route path="/ai-simplify"   element={<ProtectedRoute><Layout><ComingSoon title="AI Simplify" icon="🤖" /></Layout></ProtectedRoute>} />
       <Route path="/action-guide"  element={<ProtectedRoute><Layout><ComingSoon title="Action Guide" icon="📌" /></Layout></ProtectedRoute>} />
       <Route path="/voice-assist"  element={<ProtectedRoute><Layout><ComingSoon title="Voice Assistant" icon="🎙️" /></Layout></ProtectedRoute>} />
