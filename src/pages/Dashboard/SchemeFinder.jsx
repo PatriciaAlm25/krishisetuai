@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { SCHEMES } from '../../data/schemes';
 import './SchemeFinder.css';
@@ -157,6 +158,7 @@ export default function SchemeFinder() {
 }
 
 function SchemeCard({ scheme, isAI }) {
+  const navigate = useNavigate();
   return (
     <div className={`scheme-card ${isAI ? 'scheme-card--ai' : ''}`}>
       {isAI && scheme.matchScore && (
@@ -199,7 +201,7 @@ function SchemeCard({ scheme, isAI }) {
         <a href={scheme.link} target="_blank" rel="noopener noreferrer" className="scheme-btn scheme-btn--primary">
           Official Website ↗
         </a>
-        <button className="scheme-btn scheme-btn--outline" onClick={() => alert('Step-by-step application guide coming soon!')}>
+        <button className="scheme-btn scheme-btn--outline" onClick={() => navigate('/action-guide', { state: { schemeId: scheme.id } })}>
           How to Apply
         </button>
       </div>

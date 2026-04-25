@@ -9,6 +9,8 @@ import RegisterPage from './pages/Register/RegisterPage';
 import LoginPage    from './pages/Login/LoginPage';
 import Dashboard    from './pages/Dashboard/Dashboard';
 import SchemeFinder from './pages/Dashboard/SchemeFinder';
+import AISimplify  from './pages/Dashboard/AISimplify';
+import ActionGuide from './pages/Dashboard/ActionGuide';
 import MandiPrices  from './components/MandiPrices';
 
 // Protected Route wrapper
@@ -52,8 +54,8 @@ function AppRoutes() {
       <Route path="/marketplace"   element={<ProtectedRoute><Layout><ComingSoon title="Marketplace" icon="🛒" /></Layout></ProtectedRoute>} />
       <Route path="/logistics"     element={<ProtectedRoute><Layout><ComingSoon title="Smart Logistics" icon="🗺️" /></Layout></ProtectedRoute>} />
       <Route path="/scheme-finder" element={<ProtectedRoute><Layout><SchemeFinder /></Layout></ProtectedRoute>} />
-      <Route path="/ai-simplify"   element={<ProtectedRoute><Layout><ComingSoon title="AI Simplify" icon="🤖" /></Layout></ProtectedRoute>} />
-      <Route path="/action-guide"  element={<ProtectedRoute><Layout><ComingSoon title="Action Guide" icon="📌" /></Layout></ProtectedRoute>} />
+      <Route path="/ai-simplify"   element={<ProtectedRoute><Layout><AISimplify /></Layout></ProtectedRoute>} />
+      <Route path="/action-guide"  element={<ProtectedRoute><Layout><ActionGuide /></Layout></ProtectedRoute>} />
       <Route path="/voice-assist"  element={<ProtectedRoute><Layout><ComingSoon title="Voice Assistant" icon="🎙️" /></Layout></ProtectedRoute>} />
       <Route path="/alerts"        element={<ProtectedRoute><Layout><ComingSoon title="Smart Alerts" icon="🔔" /></Layout></ProtectedRoute>} />
       <Route path="/market-price"  element={<ProtectedRoute><Layout><MandiPrices /></Layout></ProtectedRoute>} />
