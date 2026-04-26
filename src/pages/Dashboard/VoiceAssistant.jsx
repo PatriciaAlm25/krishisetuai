@@ -24,7 +24,7 @@ export default function VoiceAssistant() {
   const [audioUrl, setAudioUrl] = useState(null);
   const [error, setError] = useState(null);
   const [volume, setVolume] = useState(0);
-  
+
   const audioContextRef = useRef(null);
   const processorRef = useRef(null);
   const pcmDataRef = useRef([]);
@@ -43,23 +43,23 @@ export default function VoiceAssistant() {
     }
     try {
       // Improved constraints for better voice capture
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
-        } 
+        }
       });
-      
+
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-      
+
       // Ensure context is running (fixes issues with some browsers)
       if (audioContextRef.current.state === 'suspended') {
         await audioContextRef.current.resume();
       }
 
       const source = audioContextRef.current.createMediaStreamSource(stream);
-      
+
       // Using ScriptProcessorNode for simple PCM capture
       processorRef.current = audioContextRef.current.createScriptProcessor(4096, 1, 1);
       pcmDataRef.current = [];
@@ -67,7 +67,7 @@ export default function VoiceAssistant() {
       processorRef.current.onaudioprocess = (e) => {
         const inputData = e.inputBuffer.getChannelData(0);
         pcmDataRef.current.push(new Float32Array(inputData));
-        
+
         // Calculate volume for visual feedback
         let sum = 0;
         for (let i = 0; i < inputData.length; i++) {
@@ -122,7 +122,7 @@ export default function VoiceAssistant() {
       const abs = Math.abs(samples[i]);
       if (abs > peak) peak = abs;
     }
-    
+
     // 2. Normalize samples (if not already loud)
     // Limit gain to 10x to prevent blowing up the noise floor
     const factor = peak > 0 ? Math.min(10, 0.9 / peak) : 1.0;
@@ -161,8 +161,8 @@ export default function VoiceAssistant() {
     try {
       // 1. Speech to Text (Sarvam)
       setStatus('Transcribing...');
-      
-      if (blob.size < 1000) { 
+
+      if (blob.size < 1000) {
         throw new Error('The recorded audio is too short. Please hold the button longer while speaking.');
       }
 
@@ -175,8 +175,8 @@ export default function VoiceAssistant() {
 
       const sttRes = await fetch('https://api.sarvam.ai/speech-to-text', {
         method: 'POST',
-        headers: { 
-          'api-subscription-key': SARVAM_API_KEY 
+        headers: {
+          'api-subscription-key': SARVAM_API_KEY
         },
         body: formData
       });
@@ -187,19 +187,19 @@ export default function VoiceAssistant() {
       }
       const sttData = await sttRes.json();
       console.log('STT Response:', sttData); // Debug log
-      
+
       const text = sttData.transcript;
       setTranscript(text);
 
       if (!text || text.trim() === '') {
         setStatus('Ready');
         const debugInfo = `(Blob size: ${Math.round(blob.size / 1024)}KB)`;
-        
+
         // Create a download link for debugging
         const downloadUrl = URL.createObjectURL(blob);
         setError(
           <div>
-            No speech detected. {debugInfo} 
+            No speech detected. {debugInfo}
             <br />
             <a href={downloadUrl} download="recording.wav" style={{ color: '#3b82f6', textDecoration: 'underline', fontSize: '0.8rem' }}>
               Download your recording to check if it has sound
@@ -211,12 +211,38 @@ export default function VoiceAssistant() {
 
       // 2. Gemini AI Response (OpenRouter)
       setStatus('Thinking...');
+
+      let marketContext = "";
+      // Check if user is asking for prices/rates
+      const isAskingForPrices = /price|rate|mandi|market|cost|bhav|daam/i.test(text);
+
+      if (isAskingForPrices) {
+        try {
+          const MANDI_API_KEY = import.meta.env.VITE_MANDI_API_KEY;
+          if (MANDI_API_KEY) {
+            const mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${MANDI_API_KEY}&format=json&limit=20`);
+            if (mandiRes.ok) {
+              const mandiData = await mandiRes.json();
+              if (mandiData.records && mandiData.records.length > 0) {
+                marketContext = "\n\nCURRENT MARKET DATA (from Agmarknet/Data.gov.in):\n" +
+                  mandiData.records.map(r => `- ${r.commodity} in ${r.market} (${r.state}): Modal Price ₹${r.modal_price}/quintal`).join('\n');
+              }
+            }
+          }
+        } catch (mandiErr) {
+          console.error("Failed to fetch market data:", mandiErr);
+        }
+      }
+
       const prompt = `You are a helpful agricultural assistant for Indian farmers. 
       The user input is a transcript from a voice recording and might contain repeated words or stutters. 
       Please ignore repetitions and answer the question in ${selectedLang.name}. 
+      ${marketContext ? `Use the provided real-time market data to give accurate answers.${marketContext}` : "If you don't have real-time data, provide general seasonal trends."}
       
-      IMPORTANT: Keep your answer VERY SHORT (under 250 characters) so it can be spoken quickly. 
+      IMPORTANT: Provide a detailed and comprehensive answer. 
+      Explain concepts clearly and provide practical advice for a farmer.
       Use simple language and NO markdown formatting (no asterisks, no bold).
+      Keep the response under 800 characters so it can still be synthesized as voice.
       
       User question: ${text}`;
 
@@ -246,10 +272,10 @@ export default function VoiceAssistant() {
       setStatus('Synthesizing Voice...');
       // Strip markdown characters for cleaner TTS
       const cleanAiText = aiText.replace(/[*_#`~]/g, '').replace(/\[.*?\]\(.*?\)/g, '');
-      
+
       const ttsRes = await fetch('https://api.sarvam.ai/text-to-speech', {
         method: 'POST',
-        headers: { 
+        headers: {
           'api-subscription-key': SARVAM_API_KEY,
           'Content-Type': 'application/json'
         },
@@ -259,7 +285,7 @@ export default function VoiceAssistant() {
           speaker: 'ritu',
           speech_sample_rate: 24000,
           output_audio_codec: 'mp3',
-          model: 'bulbul:v3' 
+          model: 'bulbul:v3'
         })
       });
 
@@ -268,7 +294,7 @@ export default function VoiceAssistant() {
         throw new Error(`Text-to-Speech failed (Status: ${ttsRes.status}): ${errorData}`);
       }
       const ttsData = await ttsRes.json();
-      
+
       if (!ttsData.audios || ttsData.audios.length === 0) {
         throw new Error('No audio returned from TTS service');
       }
@@ -299,6 +325,25 @@ export default function VoiceAssistant() {
     }
   };
 
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  };
+
+  const resetAssistant = () => {
+    stopAudio();
+    setIsRecording(false);
+    setStatus('Ready');
+    setError(null);
+    if (processorRef.current) {
+      processorRef.current.onaudioprocess = null;
+      processorRef.current.disconnect();
+    }
+    if (audioContextRef.current) audioContextRef.current.close();
+  };
+
   useEffect(() => {
     if (audioUrl) playAudio();
   }, [audioUrl]);
@@ -315,8 +360,8 @@ export default function VoiceAssistant() {
 
         <div className="va-lang-selector">
           <label>Selected Language:</label>
-          <select 
-            value={selectedLang.code} 
+          <select
+            value={selectedLang.code}
             onChange={(e) => setSelectedLang(LANGUAGES.find(l => l.code === e.target.value))}
             disabled={isRecording || status !== 'Ready' && status !== 'Idle'}
           >
@@ -325,25 +370,34 @@ export default function VoiceAssistant() {
         </div>
 
         <div className="va-mic-section">
-          <button 
-            className={`mic-button ${isRecording ? 'recording' : ''} ${status !== 'Ready' && status !== 'Idle' && !isRecording ? 'processing' : ''}`}
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onTouchStart={startRecording}
-            onTouchEnd={stopRecording}
-            disabled={status !== 'Ready' && status !== 'Idle' && !isRecording}
-          >
-            {isRecording ? '⏹️' : '🎙️'}
-          </button>
-          
+          <div className="va-controls-row">
+            <button
+              className={`mic-button ${isRecording ? 'recording' : ''} ${status !== 'Ready' && status !== 'Idle' && !isRecording ? 'processing' : ''}`}
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+              onTouchStart={startRecording}
+              onTouchEnd={stopRecording}
+              disabled={status !== 'Ready' && status !== 'Idle' && !isRecording}
+              title={isRecording ? 'Release to stop' : 'Hold to speak'}
+            >
+              {isRecording ? '⏹️' : '🎙️'}
+            </button>
+
+            {(isRecording || (status !== 'Ready' && status !== 'Idle')) && (
+              <button className="va-stop-btn" onClick={resetAssistant} title="Stop everything">
+                🛑 Stop
+              </button>
+            )}
+          </div>
+
           <div className="va-status">
             {isRecording ? (
               <div className="va-waves">
-                {[1,2,3,4,5].map(i => (
-                  <div 
-                    key={i} 
-                    className="va-wave" 
-                    style={{ height: `${Math.max(5, volume * 300)}%` }} 
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div
+                    key={i}
+                    className="va-wave"
+                    style={{ height: `${Math.max(5, volume * 300)}%` }}
                   />
                 ))}
                 <span>Listening...</span>
@@ -368,9 +422,14 @@ export default function VoiceAssistant() {
               <span className="va-bubble-label">Assistant:</span>
               {aiResponse}
               {audioUrl && (
-                <button className="va-replay-btn" onClick={playAudio}>
-                  🔊 Play Response
-                </button>
+                <div className="va-audio-controls">
+                  <button className="va-replay-btn" onClick={playAudio}>
+                    🔊 Play Response
+                  </button>
+                  <button className="va-bubble-stop-btn" onClick={stopAudio}>
+                    🛑 Stop Response
+                  </button>
+                </div>
               )}
             </div>
           )}
