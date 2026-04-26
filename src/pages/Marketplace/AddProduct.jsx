@@ -1,18 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { db, storage } from '../../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import './Marketplace.css'; // Reuse marketplace styles or add specific ones
+import { supabase } from '../../supabase';
+import './Marketplace.css'; 
 
 export default function AddProduct() {
   const { userProfile, currentUser } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef();
-
-  // Disable long retries for storage uploads
-  storage.maxUploadRetryTime = 2000; // 2 seconds instead of 10 minutes
 
   const [formData, setFormData] = useState({
     cropName: '',
@@ -30,36 +25,7 @@ export default function AddProduct() {
       setImage(file);
       const reader = new FileReader();
       reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          // Create a canvas for compression
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800; // Shrink to 800px max
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_WIDTH) {
-              width *= MAX_WIDTH / height;
-              height = MAX_WIDTH;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Convert to compressed Base64 JPEG
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); // 60% quality
-          setImagePreview(compressedBase64);
-        };
-        img.src = event.target.result;
+        setImagePreview(event.target.result);
       };
       reader.readAsDataURL(file);
     }
@@ -67,7 +33,6 @@ export default function AddProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submit clicked. Image:", image);
     
     if (!image) return setError('Please upload an image of your crop.');
     
@@ -75,26 +40,42 @@ export default function AddProduct() {
     setError('');
 
     try {
-      // Use the Base64 image preview directly since Storage is unavailable
-      const imageUrl = imagePreview || 'https://images.pexels.com/photos/2252542/pexels-photo-2252542.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
+      // 1. Upload to Supabase Storage
+      const fileExt = image.name.split('.').pop();
+      const fileName = `${currentUser.uid}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
 
-      console.log("Saving listing with Base64 image...");
-      await addDoc(collection(db, 'crop_listings'), {
-        farmerId: currentUser?.uid || 'anonymous_farmer',
-        cropName: formData.cropName,
-        quantity: Number(formData.quantity),
-        pricePerUnit: Number(formData.price),
-        unit: 'kg',
-        location: `${userProfile?.city || 'Unknown'}, ${userProfile?.state || 'India'}`,
-        imageUrl: imageUrl,
-        status: 'available',
-        createdAt: serverTimestamp()
-      });
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('crops')
+        .upload(filePath, image);
 
-      alert('✅ Crop listed successfully with your image!');
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('crops')
+        .getPublicUrl(filePath);
+
+      // 2. Save metadata to Supabase Database
+      const { error: dbError } = await supabase
+        .from('products')
+        .insert([{
+          farmer_id: currentUser?.uid || 'anonymous_farmer',
+          crop_name: formData.cropName,
+          quantity: Number(formData.quantity),
+          price: Number(formData.price),
+          unit: 'kg',
+          location: `${userProfile?.city || 'Unknown'}, ${userProfile?.state || 'India'}`,
+          image_url: publicUrl,
+          status: 'available'
+        }]);
+
+      if (dbError) throw dbError;
+
+      alert('✅ Crop listed successfully in Supabase!');
       navigate('/marketplace');
     } catch (err) {
-      console.error("CRITICAL ERROR IN LISTING:", err);
+      console.error("Listing Error:", err);
       setError(`Error: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
@@ -104,7 +85,7 @@ export default function AddProduct() {
   return (
     <div className="marketplace-container">
       <div className="form-card" style={{ maxWidth: '600px', margin: '0 auto', animation: 'fadeInUp 0.6s ease' }}>
-        <h2 className="gradient-text" style={{ marginBottom: '24px' }}>List New Crop</h2>
+        <h2 className="gradient-text" style={{ marginBottom: '24px' }}>List New Crop (Supabase)</h2>
         
         {error && <div className="error-msg" style={{ color: 'red', marginBottom: '16px' }}>{error}</div>}
 
@@ -136,7 +117,6 @@ export default function AddProduct() {
                 </div>
               )}
             </div>
-            {/* hidden input for file/camera */}
             <input 
               type="file" 
               accept="image/*" 
@@ -146,7 +126,7 @@ export default function AddProduct() {
               onChange={handleFileChange}
             />
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-              Upload from device or use camera
+              Upload to Supabase Storage
             </p>
           </div>
 

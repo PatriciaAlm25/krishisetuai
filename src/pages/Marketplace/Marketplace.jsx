@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { db } from '../../firebase';
-import { collection, query, orderBy, onSnapshot, where, deleteDoc, doc } from 'firebase/firestore';
+import { supabase } from '../../supabase';
 import './Marketplace.css';
 
 export default function Marketplace() {
@@ -18,39 +17,48 @@ export default function Marketplace() {
   const [sortBy, setSortBy] = useState('newest');
 
   useEffect(() => {
-    if (!currentUser) return;
-
-    const listingsRef = collection(db, 'crop_listings');
-    let q;
+    fetchProducts();
     
-    if (isFarmer) {
-      // Farmer only sees their own listings
-      q = query(listingsRef, where('farmerId', '==', currentUser.uid), orderBy('createdAt', 'desc'));
-    } else {
-      // Buyer sees all available listings
-      q = query(listingsRef, where('status', '==', 'available'), orderBy('createdAt', 'desc'));
-    }
+    // Set up real-time subscription
+    const subscription = supabase
+      .channel('products_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchProducts();
+      })
+      .subscribe();
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const listingsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setProducts(listingsData);
-      setLoading(false);
-    }, (err) => {
-      console.error("Firestore Error Detail:", err);
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []);
+
+  async function fetchProducts() {
+    try {
+      // Fetch all products (available and sold) so users can see history or what was sold
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (err) {
+      console.error("Supabase Error:", err);
       setError(`Failed to load listings: ${err.message}`);
+    } finally {
       setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [currentUser, isFarmer]);
+    }
+  }
 
   const handleDelete = async (listingId) => {
     if (window.confirm('Are you sure you want to delete this listing?')) {
       try {
-        await deleteDoc(doc(db, 'crop_listings', listingId));
+        const { error } = await supabase
+          .from('products')
+          .delete()
+          .eq('id', listingId);
+        
+        if (error) throw error;
       } catch (err) {
         console.error("Error deleting:", err);
         alert("Failed to delete listing.");
@@ -59,11 +67,11 @@ export default function Marketplace() {
   };
 
   const filteredProducts = products
-    .filter(p => p.cropName.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(p => p.crop_name.toLowerCase().includes(searchTerm.toLowerCase()))
     .filter(p => !filterLocation || p.location.toLowerCase().includes(filterLocation.toLowerCase()))
     .sort((a, b) => {
-      if (sortBy === 'price-low') return a.pricePerUnit - b.pricePerUnit;
-      if (sortBy === 'price-high') return b.pricePerUnit - a.pricePerUnit;
+      if (sortBy === 'price-low') return a.price - b.price;
+      if (sortBy === 'price-high') return b.price - a.price;
       return 0;
     });
 
@@ -72,13 +80,25 @@ export default function Marketplace() {
       <header className="marketplace-header">
         <div className="header-content">
           <h1 className="gradient-text">Direct Marketplace</h1>
-          <p>{isFarmer ? 'Manage your crop listings' : 'Fresh from the farm, straight to your table.'}</p>
+          <p>{isFarmer ? 'Manage your crops and track your sales.' : 'Fresh from the farm, straight to your table.'}</p>
         </div>
-        {isFarmer && (
-          <button className="btn-primary" onClick={() => navigate('/marketplace/add')}>
-            <span>+</span> List Your Crop
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {isFarmer && (
+            <>
+              <button className="btn-secondary" onClick={() => navigate('/farmer-orders')}>
+                📦 My Sales
+              </button>
+              <button className="btn-primary" onClick={() => navigate('/marketplace/add')}>
+                <span>+</span> List New Crop
+              </button>
+            </>
+          )}
+          {!isFarmer && (
+            <button className="btn-secondary" onClick={() => navigate('/my-orders')}>
+              🛍️ My Orders
+            </button>
+          )}
+        </div>
       </header>
 
       <section className="marketplace-controls">
@@ -106,7 +126,7 @@ export default function Marketplace() {
       </section>
 
       {error ? (
-        <div className="error-state" style={{ color: 'red', textAlign: 'center', padding: '50px' }}>
+        <div className="error-state">
           <h3>⚠️ Error</h3>
           <p>{error}</p>
         </div>
@@ -115,45 +135,75 @@ export default function Marketplace() {
       ) : filteredProducts.length === 0 ? (
         <div className="empty-state">
           <h3>No crops found</h3>
-          <p>{isFarmer ? 'You haven\'t listed any crops yet.' : 'Try adjusting your search or filters.'}</p>
+          <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
         <div className="products-grid">
-          {filteredProducts.map(product => (
-            <div key={product.id} className="product-card">
-              <div className="product-image">
-                <img src={product.imageUrl || 'https://via.placeholder.com/300x200?text=No+Image'} alt={product.cropName} />
-              </div>
-              <div className="product-info">
-                <div className="product-badge">{product.location}</div>
-                <h3>{product.cropName}</h3>
-                <div className="product-price">
-                  <span className="price">₹{product.pricePerUnit}</span>
-                  <span className="unit">/ {product.unit}</span>
+          {filteredProducts.map(product => {
+            const isSold = product.status === 'sold' || product.quantity <= 0;
+            return (
+              <div key={product.id} className="product-card" style={{ opacity: isSold ? 0.7 : 1 }}>
+                <div className="product-image">
+                  <img src={product.image_url || 'https://via.placeholder.com/300x200?text=No+Image'} alt={product.crop_name} />
+                  {isSold && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      background: 'var(--red-600)',
+                      color: 'white',
+                      padding: '4px 12px',
+                      borderRadius: '4px',
+                      fontWeight: 800,
+                      fontSize: '0.8rem',
+                      zIndex: 2
+                    }}>
+                      SOLD OUT
+                    </div>
+                  )}
                 </div>
-                <div className="product-quantity">
-                  Available: <span style={{ fontWeight: 800, color: product.quantity > 0 ? 'var(--green-600)' : 'var(--red-500)' }}>
-                    {product.quantity} {product.unit}
-                  </span>
+                <div className="product-info">
+                  <div className="product-badge">{product.location}</div>
+                  <h3>{product.crop_name}</h3>
+                  <div className="product-price">
+                    <span className="price">₹{product.price}</span>
+                    <span className="unit">/ {product.unit || 'kg'}</span>
+                  </div>
+                  <div className="product-quantity">
+                    {isSold ? (
+                      <span style={{ color: 'var(--red-500)', fontWeight: 800 }}>Not Available</span>
+                    ) : (
+                      <>Available: <span style={{ fontWeight: 800, color: 'var(--green-600)' }}>
+                        {product.quantity} {product.unit || 'kg'}
+                      </span></>
+                    )}
+                  </div>
+                  
+                  {product.farmer_id === currentUser.uid ? (
+                    <div className="own-listing-controls">
+                      <div className="own-listing-badge">Your Listing</div>
+                      <button 
+                        className="btn-secondary" 
+                        style={{ marginTop: '12px', background: '#fee2e2', color: '#b91c1c', border: 'none', width: '100%' }}
+                        onClick={() => handleDelete(product.id)}
+                      >
+                        Delete Listing
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      className="btn-primary buy-btn" 
+                      disabled={isSold}
+                      onClick={() => navigate(`/marketplace/checkout/${product.id}`)}
+                      style={{ background: isSold ? 'var(--gray-400)' : 'var(--green-600)' }}
+                    >
+                      {isSold ? 'Out of Stock' : 'Buy Now'}
+                    </button>
+                  )}
                 </div>
-                
-                {!isFarmer && (
-                   <button className="btn-primary buy-btn" onClick={() => navigate(`/marketplace/checkout/${product.id}`)}>
-                     Buy Now
-                   </button>
-                )}
-                {isFarmer && (
-                  <button 
-                    className="btn-secondary" 
-                    style={{ marginTop: '12px', background: '#fee2e2', color: '#b91c1c', border: 'none', width: '100%' }}
-                    onClick={() => handleDelete(product.id)}
-                  >
-                    Delete Listing
-                  </button>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

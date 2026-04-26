@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { db } from '../../firebase';
-import { doc, getDoc, collection, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { supabase } from '../../supabase';
 import './Marketplace.css';
 
 export default function Checkout() {
@@ -17,20 +16,27 @@ export default function Checkout() {
     fullName: userProfile?.fullName || '',
     phone: '',
     address: '',
-    deliveryPreference: 'home_delivery', // or 'pickup'
+    deliveryPreference: 'home_delivery', 
     quantity: 1
   });
 
   useEffect(() => {
     async function fetchProduct() {
-      const docRef = doc(db, 'crop_listings', id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setProduct({ id: docSnap.id, ...docSnap.data() });
-      } else {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        setProduct(data);
+      } catch (err) {
+        console.error("Fetch Product Error:", err);
         navigate('/marketplace');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     fetchProduct();
   }, [id, navigate]);
@@ -44,42 +50,43 @@ export default function Checkout() {
     setSubmitting(true);
 
     try {
-      const listingRef = doc(db, 'crop_listings', id);
-      const orderRef = doc(collection(db, 'orders'));
+      const requestedQty = Number(formData.quantity);
+      const newQuantity = product.quantity - requestedQty;
 
-      await runTransaction(db, async (transaction) => {
-        const listingDoc = await transaction.get(listingRef);
-        if (!listingDoc.exists()) throw "Listing does not exist!";
+      // 1. Create order
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert([{
+          product_id: product.id,
+          buyer_id: currentUser.uid,
+          buyer_name: formData.fullName,
+          farmer_id: product.farmer_id,
+          quantity_ordered: requestedQty,
+          total_price: requestedQty * product.price,
+          delivery_address: formData.address,
+          contact_number: formData.phone,
+          delivery_preference: formData.deliveryPreference,
+          status: 'pending'
+        }]);
 
-        const newQuantity = listingDoc.data().quantity - Number(formData.quantity);
-        if (newQuantity < 0) throw "Not enough stock!";
+      if (orderError) throw orderError;
 
-        // Update listing
-        transaction.update(listingRef, {
+      // 2. Update product quantity
+      const { error: productError } = await supabase
+        .from('products')
+        .update({ 
           quantity: newQuantity,
           status: newQuantity === 0 ? 'soldout' : 'available'
-        });
+        })
+        .eq('id', product.id);
 
-        // Create order
-        transaction.set(orderRef, {
-          buyerId: currentUser.uid,
-          farmerId: product.farmerId,
-          listingId: product.id,
-          cropName: product.cropName,
-          quantityOrdered: Number(formData.quantity),
-          deliveryAddress: formData.address,
-          contactNumber: formData.phone,
-          totalPrice: Number(formData.quantity) * product.pricePerUnit,
-          status: 'pending',
-          createdAt: serverTimestamp()
-        });
-      });
+      if (productError) throw productError;
 
-      alert('Order placed successfully!');
+      alert('Order placed successfully via Supabase!');
       navigate('/my-orders');
     } catch (err) {
-      console.error("Transaction failed: ", err);
-      alert('Order failed: ' + err);
+      console.error("Order process failed: ", err);
+      alert('Order failed: ' + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -182,16 +189,16 @@ export default function Checkout() {
           <div className="form-card" style={{ position: 'sticky', top: '100px' }}>
             <h3 style={{ marginBottom: '16px' }}>Order Summary</h3>
             <div className="summary-item" style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-              <img src={product.imageUrl} alt={product.cropName} style={{ width: '80px', height: '60px', borderRadius: '4px', objectFit: 'cover' }} />
+              <img src={product.image_url} alt={product.crop_name} style={{ width: '80px', height: '60px', borderRadius: '4px', objectFit: 'cover' }} />
               <div>
-                <p style={{ fontWeight: 600 }}>{product.cropName}</p>
+                <p style={{ fontWeight: 600 }}>{product.crop_name}</p>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{product.location}</p>
               </div>
             </div>
             <hr style={{ margin: '16px 0', border: 'none', borderTop: '1px solid var(--gray-100)' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span>Price per {product.unit}</span>
-              <span>₹{product.pricePerUnit}</span>
+              <span>₹{product.price}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span>Quantity</span>
@@ -199,7 +206,7 @@ export default function Checkout() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.2rem', marginTop: '16px', color: 'var(--green-600)' }}>
               <span>Total</span>
-              <span>₹{formData.quantity * product.pricePerUnit}</span>
+              <span>₹{formData.quantity * product.price}</span>
             </div>
           </div>
         </div>
