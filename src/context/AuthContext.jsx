@@ -1,57 +1,84 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../supabase';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Register a new user (mock with persistence)
+  // Load user from localStorage on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('ks_user');
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      const mapped = { ...parsed, fullName: parsed.fullName || parsed.full_name };
+      setCurrentUser({ id: mapped.id, uid: mapped.id, email: mapped.email });
+      setUserProfile(mapped);
+    }
+    setLoading(false);
+  }, []);
+
+
+  // Register a new user in the custom 'users' table
   async function register(email, password, profileData) {
-    const mockUser = { uid: `user-${Date.now()}`, email };
-    const profile = { ...mockUser, ...profileData, createdAt: new Date().toISOString() };
+    const { role, fullName, mobile, ...metadata } = profileData;
     
-    // Save to localStorage so login can find it
-    const users = JSON.parse(localStorage.getItem('ks_mock_users') || '{}');
-    users[email.toLowerCase()] = profile;
-    localStorage.setItem('ks_mock_users', JSON.stringify(users));
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{
+        email: email.toLowerCase(),
+        password: password,
+        role: role,
+        full_name: fullName,
+        mobile: mobile,
+        metadata: metadata
+      }])
+      .select()
+      .single();
 
-    setCurrentUser(mockUser);
-    setUserProfile(profile);
-    return mockUser;
-  }
-
-  // Login (mock with persistence)
-  async function login(email, password) {
-    const users = JSON.parse(localStorage.getItem('ks_mock_users') || '{}');
-    const savedProfile = users[email.toLowerCase()];
-
-    if (savedProfile) {
-      setCurrentUser({ uid: savedProfile.uid, email: savedProfile.email });
-      setUserProfile(savedProfile);
-      return savedProfile;
+    if (error) {
+      if (error.code === '23505') throw new Error('Email already registered');
+      throw error;
     }
 
-    // Fallback for demo purposes if user wasn't found in localStorage
-    const mockUser = { uid: 'demo-user', email };
-    const isFarmer = !email.toLowerCase().includes('buyer');
-    const mockProfile = { 
-        role: isFarmer ? 'farmer' : 'buyer', 
-        fullName: 'Demo User', 
-        state: 'Maharashtra',
-        city: 'Pune'
-    };
-    
-    setCurrentUser(mockUser);
-    setUserProfile(mockProfile);
-    return mockUser;
+    const mappedData = { ...data, fullName: data.full_name, ...data.metadata };
+    const user = { id: data.id, uid: data.id, email: data.email };
+    setCurrentUser(user);
+    setUserProfile(mappedData);
+    localStorage.setItem('ks_user', JSON.stringify(mappedData));
+    return mappedData;
   }
+
+  // Login by checking the custom 'users' table
+  async function login(email, password) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .eq('password', password)
+      .single();
+
+    if (error || !data) {
+      throw new Error('Invalid email or password');
+    }
+
+    const mappedData = { ...data, fullName: data.full_name, ...data.metadata };
+    const user = { id: data.id, uid: data.id, email: data.email };
+    setCurrentUser(user);
+    setUserProfile(mappedData);
+    localStorage.setItem('ks_user', JSON.stringify(mappedData));
+    return mappedData;
+  }
+
+
 
   // Logout
   async function logout() {
     setCurrentUser(null);
     setUserProfile(null);
+    localStorage.removeItem('ks_user');
   }
 
   const value = { currentUser, userProfile, register, login, logout, loading };
@@ -66,3 +93,4 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+
