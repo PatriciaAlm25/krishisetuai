@@ -19,6 +19,7 @@ import Checkout     from './pages/Marketplace/Checkout';
 import MyOrders     from './pages/Marketplace/MyOrders';
 import FarmerOrders from './pages/Marketplace/FarmerOrders';
 import Logistics     from './pages/Logistics/Logistics';
+import SmartAlerts    from './pages/Dashboard/SmartAlerts';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }) {
@@ -69,7 +70,7 @@ function AppRoutes() {
       <Route path="/ai-simplify"   element={<ProtectedRoute><Layout><AISimplify /></Layout></ProtectedRoute>} />
       <Route path="/action-guide"  element={<ProtectedRoute><Layout><ActionGuide /></Layout></ProtectedRoute>} />
       <Route path="/voice-assist"  element={<ProtectedRoute><Layout><VoiceAssistant /></Layout></ProtectedRoute>} />
-      <Route path="/alerts"        element={<ProtectedRoute><Layout><ComingSoon title="Smart Alerts" icon="🔔" /></Layout></ProtectedRoute>} />
+      <Route path="/alerts"        element={<ProtectedRoute><Layout><SmartAlerts /></Layout></ProtectedRoute>} />
       <Route path="/market-price"  element={<ProtectedRoute><Layout><MandiPrices /></Layout></ProtectedRoute>} />
 
       {/* Fallback */}
