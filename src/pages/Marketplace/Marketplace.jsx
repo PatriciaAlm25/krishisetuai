@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../firebase';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where, deleteDoc, doc } from 'firebase/firestore';
 import './Marketplace.css';
 
 export default function Marketplace() {
@@ -18,36 +18,53 @@ export default function Marketplace() {
   const [sortBy, setSortBy] = useState('newest');
 
   useEffect(() => {
-    const productsRef = collection(db, 'products');
-    let q = query(productsRef, orderBy('createdAt', 'desc'));
+    if (!currentUser) return;
 
-    // If farmer, they might want to see their own products specifically or all? 
-    // Usually a marketplace shows everything, but maybe a "My Listings" tab?
-    // For now, let's show ALL products to everyone, but farmers see an "Add" button.
+    const listingsRef = collection(db, 'crop_listings');
+    let q;
+    
+    if (isFarmer) {
+      // Farmer only sees their own listings
+      q = query(listingsRef, where('farmerId', '==', currentUser.uid), orderBy('createdAt', 'desc'));
+    } else {
+      // Buyer sees all available listings
+      q = query(listingsRef, where('status', '==', 'available'), orderBy('createdAt', 'desc'));
+    }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const productsData = snapshot.docs.map(doc => ({
+      const listingsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      setProducts(productsData);
+      setProducts(listingsData);
       setLoading(false);
     }, (err) => {
-      console.error("Firestore Error:", err);
-      setError("Failed to load products. Please check your Firebase settings.");
+      console.error("Firestore Error Detail:", err);
+      setError(`Failed to load listings: ${err.message}`);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser, isFarmer]);
+
+  const handleDelete = async (listingId) => {
+    if (window.confirm('Are you sure you want to delete this listing?')) {
+      try {
+        await deleteDoc(doc(db, 'crop_listings', listingId));
+      } catch (err) {
+        console.error("Error deleting:", err);
+        alert("Failed to delete listing.");
+      }
+    }
+  };
 
   const filteredProducts = products
     .filter(p => p.cropName.toLowerCase().includes(searchTerm.toLowerCase()))
     .filter(p => !filterLocation || p.location.toLowerCase().includes(filterLocation.toLowerCase()))
     .sort((a, b) => {
-      if (sortBy === 'price-low') return a.price - b.price;
-      if (sortBy === 'price-high') return b.price - a.price;
-      return 0; // newest is default from firestore query
+      if (sortBy === 'price-low') return a.pricePerUnit - b.pricePerUnit;
+      if (sortBy === 'price-high') return b.pricePerUnit - a.pricePerUnit;
+      return 0;
     });
 
   return (
@@ -55,7 +72,7 @@ export default function Marketplace() {
       <header className="marketplace-header">
         <div className="header-content">
           <h1 className="gradient-text">Direct Marketplace</h1>
-          <p>Fresh from the farm, straight to your table.</p>
+          <p>{isFarmer ? 'Manage your crop listings' : 'Fresh from the farm, straight to your table.'}</p>
         </div>
         {isFarmer && (
           <button className="btn-primary" onClick={() => navigate('/marketplace/add')}>
@@ -94,11 +111,11 @@ export default function Marketplace() {
           <p>{error}</p>
         </div>
       ) : loading ? (
-        <div className="loading-state">Loading products...</div>
+        <div className="loading-state">Loading marketplace...</div>
       ) : filteredProducts.length === 0 ? (
         <div className="empty-state">
           <h3>No crops found</h3>
-          <p>Try adjusting your search or filters.</p>
+          <p>{isFarmer ? 'You haven\'t listed any crops yet.' : 'Try adjusting your search or filters.'}</p>
         </div>
       ) : (
         <div className="products-grid">
@@ -110,20 +127,29 @@ export default function Marketplace() {
               <div className="product-info">
                 <div className="product-badge">{product.location}</div>
                 <h3>{product.cropName}</h3>
-                <p className="farmer-name">By {product.farmerName}</p>
                 <div className="product-price">
-                  <span className="price">₹{product.price}</span>
-                  <span className="unit">/ kg</span>
+                  <span className="price">₹{product.pricePerUnit}</span>
+                  <span className="unit">/ {product.unit}</span>
                 </div>
-                <div className="product-quantity">Available: {product.quantity} kg</div>
+                <div className="product-quantity">
+                  Available: <span style={{ fontWeight: 800, color: product.quantity > 0 ? 'var(--green-600)' : 'var(--red-500)' }}>
+                    {product.quantity} {product.unit}
+                  </span>
+                </div>
                 
                 {!isFarmer && (
                    <button className="btn-primary buy-btn" onClick={() => navigate(`/marketplace/checkout/${product.id}`)}>
                      Buy Now
                    </button>
                 )}
-                {isFarmer && product.farmerId === currentUser.uid && (
-                  <div className="own-listing-badge">Your Listing</div>
+                {isFarmer && (
+                  <button 
+                    className="btn-secondary" 
+                    style={{ marginTop: '12px', background: '#fee2e2', color: '#b91c1c', border: 'none', width: '100%' }}
+                    onClick={() => handleDelete(product.id)}
+                  >
+                    Delete Listing
+                  </button>
                 )}
               </div>
             </div>

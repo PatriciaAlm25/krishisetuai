@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, serverTimestamp, runTransaction } from 'firebase/firestore';
 import './Marketplace.css';
 
 export default function Checkout() {
@@ -23,7 +23,7 @@ export default function Checkout() {
 
   useEffect(() => {
     async function fetchProduct() {
-      const docRef = doc(db, 'products', id);
+      const docRef = doc(db, 'crop_listings', id);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         setProduct({ id: docSnap.id, ...docSnap.data() });
@@ -37,30 +37,49 @@ export default function Checkout() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.quantity > product.quantity) {
+      return alert('Requested quantity exceeds available stock.');
+    }
+    
     setSubmitting(true);
 
     try {
-      await addDoc(collection(db, 'orders'), {
-        productId: product.id,
-        cropName: product.cropName,
-        farmerId: product.farmerId,
-        buyerId: currentUser.uid,
-        buyerName: formData.fullName,
-        buyerPhone: formData.phone,
-        buyerAddress: formData.address,
-        quantity: Number(formData.quantity),
-        totalPrice: Number(formData.quantity) * product.price,
-        deliveryPreference: formData.deliveryPreference,
-        status: 'pending',
-        paymentMethod: 'Cash on Delivery',
-        createdAt: serverTimestamp()
+      const listingRef = doc(db, 'crop_listings', id);
+      const orderRef = doc(collection(db, 'orders'));
+
+      await runTransaction(db, async (transaction) => {
+        const listingDoc = await transaction.get(listingRef);
+        if (!listingDoc.exists()) throw "Listing does not exist!";
+
+        const newQuantity = listingDoc.data().quantity - Number(formData.quantity);
+        if (newQuantity < 0) throw "Not enough stock!";
+
+        // Update listing
+        transaction.update(listingRef, {
+          quantity: newQuantity,
+          status: newQuantity === 0 ? 'soldout' : 'available'
+        });
+
+        // Create order
+        transaction.set(orderRef, {
+          buyerId: currentUser.uid,
+          farmerId: product.farmerId,
+          listingId: product.id,
+          cropName: product.cropName,
+          quantityOrdered: Number(formData.quantity),
+          deliveryAddress: formData.address,
+          contactNumber: formData.phone,
+          totalPrice: Number(formData.quantity) * product.pricePerUnit,
+          status: 'pending',
+          createdAt: serverTimestamp()
+        });
       });
 
       alert('Order placed successfully!');
       navigate('/my-orders');
     } catch (err) {
-      console.error("Error placing order:", err);
-      alert('Failed to place order.');
+      console.error("Transaction failed: ", err);
+      alert('Order failed: ' + err);
     } finally {
       setSubmitting(false);
     }
@@ -139,7 +158,7 @@ export default function Checkout() {
                 style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--gray-300)' }}
               />
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Max available: {product.quantity} kg
+                Max available: {product.quantity} {product.unit}
               </p>
             </div>
 
@@ -171,16 +190,16 @@ export default function Checkout() {
             </div>
             <hr style={{ margin: '16px 0', border: 'none', borderTop: '1px solid var(--gray-100)' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>Price per kg</span>
-              <span>₹{product.price}</span>
+              <span>Price per {product.unit}</span>
+              <span>₹{product.pricePerUnit}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span>Quantity</span>
-              <span>{formData.quantity} kg</span>
+              <span>{formData.quantity} {product.unit}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.2rem', marginTop: '16px', color: 'var(--green-600)' }}>
               <span>Total</span>
-              <span>₹{formData.quantity * product.price}</span>
+              <span>₹{formData.quantity * product.pricePerUnit}</span>
             </div>
           </div>
         </div>

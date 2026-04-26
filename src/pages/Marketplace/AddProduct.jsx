@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db, storage } from '../../firebase';
@@ -10,6 +10,9 @@ export default function AddProduct() {
   const { userProfile, currentUser } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef();
+
+  // Disable long retries for storage uploads
+  storage.maxUploadRetryTime = 2000; // 2 seconds instead of 10 minutes
 
   const [formData, setFormData] = useState({
     cropName: '',
@@ -26,40 +29,73 @@ export default function AddProduct() {
     if (file) {
       setImage(file);
       const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // Create a canvas for compression
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800; // Shrink to 800px max
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_WIDTH) {
+              width *= MAX_WIDTH / height;
+              height = MAX_WIDTH;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to compressed Base64 JPEG
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); // 60% quality
+          setImagePreview(compressedBase64);
+        };
+        img.src = event.target.result;
+      };
       reader.readAsDataURL(file);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Submit clicked. Image:", image);
+    
     if (!image) return setError('Please upload an image of your crop.');
     
     setLoading(true);
     setError('');
 
     try {
-      // 1. Upload image to Firebase Storage
-      const storageRef = ref(storage, `products/${currentUser.uid}_${Date.now()}_${image.name}`);
-      const snapshot = await uploadBytes(storageRef, image);
-      const imageUrl = await getDownloadURL(snapshot.ref);
+      // Use the Base64 image preview directly since Storage is unavailable
+      const imageUrl = imagePreview || 'https://images.pexels.com/photos/2252542/pexels-photo-2252542.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
 
-      // 2. Save product info to Firestore
-      await addDoc(collection(db, 'products'), {
+      console.log("Saving listing with Base64 image...");
+      await addDoc(collection(db, 'crop_listings'), {
+        farmerId: currentUser?.uid || 'anonymous_farmer',
         cropName: formData.cropName,
-        price: Number(formData.price),
         quantity: Number(formData.quantity),
+        pricePerUnit: Number(formData.price),
+        unit: 'kg',
+        location: `${userProfile?.city || 'Unknown'}, ${userProfile?.state || 'India'}`,
         imageUrl: imageUrl,
-        farmerId: currentUser.uid,
-        farmerName: userProfile.fullName,
-        location: `${userProfile.city}, ${userProfile.state}`,
+        status: 'available',
         createdAt: serverTimestamp()
       });
 
+      alert('✅ Crop listed successfully with your image!');
       navigate('/marketplace');
     } catch (err) {
-      console.error("Error adding product:", err);
-      setError('Failed to list product. Please check your connection.');
+      console.error("CRITICAL ERROR IN LISTING:", err);
+      setError(`Error: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -92,7 +128,7 @@ export default function AddProduct() {
               }}
             >
               {imagePreview ? (
-                <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#fff' }} />
               ) : (
                 <div style={{ color: 'var(--text-muted)' }}>
                   <span style={{ fontSize: '2rem', display: 'block' }}>📸</span>

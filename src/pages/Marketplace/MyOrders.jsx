@@ -31,7 +31,7 @@ export default function MyOrders() {
       setLoading(false);
     }, (err) => {
       console.error("Firestore Orders Error:", err);
-      setError("Failed to load orders.");
+      setError(`Failed to load orders: ${err.message}`);
       setLoading(false);
     });
 
@@ -54,10 +54,10 @@ export default function MyOrders() {
     }
   };
 
-  const handleMarkAsSold = async (orderId) => {
+  const handleMarkAsDelivered = async (orderId) => {
     try {
       await updateDoc(doc(db, 'orders', orderId), {
-        status: 'sold'
+        status: 'delivered'
       });
     } catch (err) {
       console.error(err);
@@ -115,19 +115,19 @@ export default function MyOrders() {
                 )}
                 <h3 style={{ fontSize: '1.25rem', marginBottom: '8px' }}>{order.cropName}</h3>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <p><strong>Quantity:</strong> {order.quantity} kg</p>
+                  <p><strong>Quantity:</strong> {order.quantityOrdered} kg</p>
                   <p><strong>Total:</strong> ₹{order.totalPrice}</p>
                   <p><strong>Status:</strong> <span style={{ 
-                    color: order.status === 'sold' ? 'var(--gray-500)' : order.status === 'confirmed' ? 'var(--green-600)' : 'var(--blue-600)',
+                    color: order.status === 'delivered' ? 'var(--green-600)' : order.status === 'confirmed' ? 'var(--blue-600)' : 'var(--orange-500)',
                     fontWeight: 700,
                     textTransform: 'capitalize'
                   }}>{order.status}</span></p>
-                  <p><strong>Preference:</strong> {order.deliveryPreference === 'pickup' ? 'Pickup' : 'Home Delivery'}</p>
+                  <p><strong>Order Date:</strong> {order.createdAt?.toDate().toLocaleDateString()}</p>
                 </div>
 
                 <div className="delivery-info" style={{ marginTop: '16px', padding: '12px', background: 'var(--gray-50)', borderRadius: '8px' }}>
                    {order.deliveryDate ? (
-                      <p><strong>Delivery Date/Time:</strong> {order.deliveryDate}</p>
+                      <p><strong>Scheduled Delivery:</strong> {order.deliveryDate}</p>
                    ) : (
                       <p style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>
                         {isFarmer ? 'Please provide a delivery date/time to confirm.' : 'Waiting for farmer to provide delivery date.'}
@@ -137,15 +137,14 @@ export default function MyOrders() {
                 
                 {isFarmer && (
                    <div className="buyer-details" style={{ marginTop: '16px', fontSize: '0.9rem' }}>
-                      <p><strong>Buyer:</strong> {order.buyerName}</p>
-                      <p><strong>Phone:</strong> {order.buyerPhone}</p>
-                      <p><strong>Address:</strong> {order.buyerAddress}</p>
+                      <p><strong>Delivery To:</strong> {order.deliveryAddress}</p>
+                      <p><strong>Contact:</strong> {order.contactNumber}</p>
                    </div>
                 )}
               </div>
 
               <div className="order-actions" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '10px' }}>
-                {isFarmer && order.status !== 'sold' && (
+                {isFarmer && order.status !== 'delivered' && (
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                       <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Delivery Date/Time</label>
@@ -160,15 +159,15 @@ export default function MyOrders() {
                         Confirm Date
                       </button>
                     </div>
-                    <button className="btn-primary" style={{ background: 'var(--gray-700)' }} onClick={() => handleMarkAsSold(order.id)}>
-                      Mark as Sold
+                    <button className="btn-primary" style={{ background: 'var(--gray-700)' }} onClick={() => handleMarkAsDelivered(order.id)}>
+                      Mark as Delivered
                     </button>
                   </>
                 )}
                 
-                {!isFarmer && order.status === 'sold' && (
+                {!isFarmer && order.status === 'delivered' && (
                    <div style={{ textAlign: 'center', color: 'var(--green-600)', fontWeight: 600 }}>
-                      ✅ Completed
+                      ✅ Delivered
                    </div>
                 )}
               </div>
