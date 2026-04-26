@@ -23,8 +23,7 @@ export default function FarmerOrders() {
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
-        table: 'orders',
-        filter: `farmer_id=eq.${currentUser.uid}`
+        table: 'orders'
       }, () => {
         fetchOrders();
       })
@@ -39,7 +38,10 @@ export default function FarmerOrders() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*')
+        .select(`
+          *,
+          products ( crop_name, location, image_url )
+        `)
         .eq('farmer_id', currentUser.uid)
         .order('created_at', { ascending: false });
 
@@ -143,7 +145,7 @@ export default function FarmerOrders() {
                   </span>
                 </div>
                 
-                <h3 style={{ margin: '0 0 16px 0', fontSize: '1.4rem' }}>{order.crop_name}</h3>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '1.4rem' }}>{order.products?.crop_name || 'Unknown Crop'}</h3>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', fontSize: '1rem' }}>
                   <div className="info-block">

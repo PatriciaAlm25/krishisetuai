@@ -57,15 +57,23 @@ export default function AddProduct() {
         .getPublicUrl(filePath);
 
       // 2. Save metadata to Supabase Database
+      const location = [
+        userProfile?.village,
+        userProfile?.district,
+        userProfile?.city, // Support both if they exist
+        userProfile?.state || 'India'
+      ].filter(Boolean).join(', ');
+
       const { error: dbError } = await supabase
         .from('products')
         .insert([{
           farmer_id: currentUser?.uid || 'anonymous_farmer',
+          farmer_name: userProfile?.fullName || 'Verified Farmer',
           crop_name: formData.cropName,
           quantity: Number(formData.quantity),
           price: Number(formData.price),
           unit: 'kg',
-          location: `${userProfile?.city || 'Unknown'}, ${userProfile?.state || 'India'}`,
+          location: location,
           image_url: publicUrl,
           status: 'available'
         }]);
