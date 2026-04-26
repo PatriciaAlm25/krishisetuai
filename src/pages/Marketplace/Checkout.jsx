@@ -43,6 +43,7 @@ export default function Checkout() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!currentUser) return alert('You must be logged in to place an order.');
     if (formData.quantity > product.quantity) {
       return alert('Requested quantity exceeds available stock.');
     }
@@ -192,7 +193,8 @@ export default function Checkout() {
               <img src={product.image_url} alt={product.crop_name} style={{ width: '80px', height: '60px', borderRadius: '4px', objectFit: 'cover' }} />
               <div>
                 <p style={{ fontWeight: 600 }}>{product.crop_name}</p>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{product.location}</p>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>📍 {product.location}</p>
+                <p style={{ fontSize: '0.85rem', color: 'var(--green-600)', fontWeight: 600 }}>👨‍🌾 Seller: {product.farmer_name || 'Verified Farmer'}</p>
               </div>
             </div>
             <hr style={{ margin: '16px 0', border: 'none', borderTop: '1px solid var(--gray-100)' }} />

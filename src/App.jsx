@@ -18,6 +18,7 @@ import AddProduct   from './pages/Marketplace/AddProduct';
 import Checkout     from './pages/Marketplace/Checkout';
 import MyOrders     from './pages/Marketplace/MyOrders';
 import FarmerOrders from './pages/Marketplace/FarmerOrders';
+import Logistics     from './pages/Logistics/Logistics';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }) {
@@ -63,7 +64,7 @@ function AppRoutes() {
       <Route path="/my-orders"            element={<ProtectedRoute><Layout><MyOrders /></Layout></ProtectedRoute>} />
       <Route path="/farmer-orders"        element={<ProtectedRoute><Layout><FarmerOrders /></Layout></ProtectedRoute>} />
 
-      <Route path="/logistics"     element={<ProtectedRoute><Layout><ComingSoon title="Smart Logistics" icon="🗺️" /></Layout></ProtectedRoute>} />
+      <Route path="/logistics"     element={<ProtectedRoute><Layout><Logistics /></Layout></ProtectedRoute>} />
       <Route path="/scheme-finder" element={<ProtectedRoute><Layout><SchemeFinder /></Layout></ProtectedRoute>} />
       <Route path="/ai-simplify"   element={<ProtectedRoute><Layout><AISimplify /></Layout></ProtectedRoute>} />
       <Route path="/action-guide"  element={<ProtectedRoute><Layout><ActionGuide /></Layout></ProtectedRoute>} />

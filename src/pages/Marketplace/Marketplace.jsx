@@ -163,7 +163,12 @@ export default function Marketplace() {
                   )}
                 </div>
                 <div className="product-info">
-                  <div className="product-badge">{product.location}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div className="product-badge">{product.location}</div>
+                    <div className="farmer-badge" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      👨‍🌾 {product.farmer_name || 'Verified Farmer'}
+                    </div>
+                  </div>
                   <h3>{product.crop_name}</h3>
                   <div className="product-price">
                     <span className="price">₹{product.price}</span>
@@ -191,14 +196,16 @@ export default function Marketplace() {
                       </button>
                     </div>
                   ) : (
-                    <button 
-                      className="btn-primary buy-btn" 
-                      disabled={isSold}
-                      onClick={() => navigate(`/marketplace/checkout/${product.id}`)}
-                      style={{ background: isSold ? 'var(--gray-400)' : 'var(--green-600)' }}
-                    >
-                      {isSold ? 'Out of Stock' : 'Buy Now'}
-                    </button>
+                    !isFarmer && (
+                      <button 
+                        className="btn-primary buy-btn" 
+                        disabled={isSold}
+                        onClick={() => navigate(`/marketplace/checkout/${product.id}`)}
+                        style={{ background: isSold ? 'var(--gray-400)' : 'var(--green-600)' }}
+                      >
+                        {isSold ? 'Out of Stock' : 'Buy Now'}
+                      </button>
+                    )
                   )}
                 </div>
               </div>

@@ -18,8 +18,7 @@ export default function MyOrders() {
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
-        table: 'orders',
-        filter: `buyer_id=eq.${currentUser.uid}`
+        table: 'orders'
       }, () => {
         fetchOrders();
       })
@@ -34,7 +33,10 @@ export default function MyOrders() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*')
+        .select(`
+          *,
+          products ( crop_name, location, image_url, farmer_name )
+        `)
         .eq('buyer_id', currentUser.uid)
         .order('created_at', { ascending: false });
 
@@ -100,7 +102,10 @@ export default function MyOrders() {
                         {status.label}
                       </span>
                     </div>
-                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{order.crop_name}</h3>
+                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{order.products?.crop_name || 'Unknown Crop'}</h3>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--green-700)', fontWeight: 600, marginTop: '4px' }}>
+                      👨‍🌾 Seller: {order.products?.farmer_name || 'Verified Farmer'}
+                    </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <p style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--green-600)', margin: 0 }}>₹{order.total_price}</p>
